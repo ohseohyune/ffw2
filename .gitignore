@@ -1,0 +1,19 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.env/
+
+# Training outputs
+*.pt
+*.npz
+*.pkl
+
+# Logs & results
+results/
+logs/
+
+# OS
+.DS_Store
