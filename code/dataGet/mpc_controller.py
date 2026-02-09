@@ -9,7 +9,7 @@ import mujoco
 from scipy.optimize import minimize
 from .config import MPCConfig, CostWeights, TorqueLimits
 
-
+            
 class TorqueMPC:
     """
     Model Predictive Control for torque-based robot control

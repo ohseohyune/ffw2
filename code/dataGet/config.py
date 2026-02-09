@@ -259,10 +259,9 @@ class TrajectoryConfig:
     # Phase 2: 대기
     T_WAIT = 0.5
 
-    # Phase 3: 유지 (wave 제거)
-    T_HOLD = 1.0                                # 수정! T_WAVE → T_HOLD, 단순 유지
+    # Phase 3: 유지 
+    T_HOLD = 1.0                                
 
-    # 수정! WRIST_*, UPPERARM_*, WAVE_*, PHASE_DELAY 모두 제거
 
 
 class PathConfig:

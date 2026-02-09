@@ -288,6 +288,6 @@ HORIZON = 15
 
 ---
 
-**License**: MIT
+**License**: 
 **Author**: Your Name
 **Date**: 2026-01-28 -->

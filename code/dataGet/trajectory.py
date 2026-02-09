@@ -145,5 +145,5 @@ def get_trajectory_phases():
     return {
         'raise': cfg.T_RAISE,
         'wait': cfg.T_RAISE + cfg.T_WAIT,
-        'hold': cfg.T_RAISE + cfg.T_WAIT + cfg.T_HOLD  # 수정! 'wave' → 'hold'
+        'hold': cfg.T_RAISE + cfg.T_WAIT + cfg.T_HOLD  
     }
