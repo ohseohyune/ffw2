@@ -12,6 +12,7 @@ KKT 조건 완화(Relaxed KKT) 방법을 사용합니다.
 """
 
 import numpy as np
+import os
 import mujoco
 from scipy.optimize import minimize, LinearConstraint
 import matplotlib.pyplot as plt
@@ -99,84 +100,65 @@ class InverseOptimalControl:
         Returns:
             gradient_norm_squared: ‖∇L‖² 값
         """
+
         # 파라미터 언팩
-        q_pos_weight = theta[0]
-        q_vel_weight = theta[1] 
-        r_tau_weight = theta[2]
-        q_terminal_weight = theta[3]
+        q_pos_w, q_vel_w, r_tau_w, q_term_w, q_vel_term_w, q_vel_ref_w = theta
         
-        # 시연 데이터 추출
-        q_demo = demonstration['q']      # (horizon+1, nq)
-        qdot_demo = demonstration['qdot']
-        u_demo = demonstration['u']      # (horizon+1, nq)
+        q_demo = demonstration['q']       # (horizon+1, nq)
+        qdot_demo = demonstration['qdot'] # (horizon+1, nq)
+        u_demo = demonstration['u']       # (horizon, nq)
         
-        # Lagrangian 기울기를 저장할 배열
+        # 전문가의 목표 상태 (시연의 마지막을 목표로 가정하거나 별도의 ref 사용)
+        q_ref = q_demo[-1]
+        qdot_ref = qdot_demo[-1] 
+        
         grad_L = np.zeros((self.horizon, self.nq))
         
-        # 각 시간 스텝에서 Lagrangian의 u에 대한 편미분 계산
         for k in range(self.horizon):
-            # 현재 상태
-            q_k = q_demo[k]
-            qdot_k = qdot_demo[k]
-            u_k = u_demo[k]
+            # 1. ∂l_k/∂u_k (현재 스텝의 Control Effort 미분)
+            dldu_direct = 2 * r_tau_w * u_demo[k]
             
-            # 다음 상태 (실제 시연)
-            q_next_demo = q_demo[k+1]
-            qdot_next_demo = qdot_demo[k+1]
+            # 2. ∂x_{k+1}/∂u_k (System Dynamics 미분 - 수치 미분)
+            dynamics_grad_q = np.zeros((self.nq, self.nq))    # ∂q_{k+1}/∂u_k
+            dynamics_grad_qdot = np.zeros((self.nq, self.nq)) # ∂qdot_{k+1}/∂u_k
             
-            # ∂l/∂u 계산 (stage cost의 입력에 대한 미분) -> 어떤 입력이 가장 cost를 작게 하는지 계산 
-            # l = q_pos * ‖q - q_ref‖² + q_vel * ‖qdot‖² + r_tau * ‖u‖²
-            dldu_direct = 2 * r_tau_weight * u_k
-            
-            # ∂(next state)/∂u 계산 (동역학 제약의 u에 대한 미분)
-            # x_{k+1} = f(x_k, u_k)이므로 ∂x_{k+1}/∂u_k를 구해야 함
-            
-            # 수치 미분으로 근사
             epsilon = 1e-6
-            du = np.eye(self.nq) * epsilon
-            
-            # 동역학 계산을 위한 상태 설정
-            dynamics_grad = np.zeros((self.nq, self.nq))
-            
             for i in range(self.nq):
-                # u + epsilon
-                u_plus = u_k.copy()
-                u_plus[i] += epsilon
-                q_next_plus, qdot_next_plus = self._forward_dynamics(q_k, qdot_k, u_plus)
+                u_plus = u_demo[k].copy();  u_plus[i] += epsilon
+                u_minus = u_demo[k].copy(); u_minus[i] -= epsilon
                 
-                # u - epsilon  
-                u_minus = u_k.copy()
-                u_minus[i] -= epsilon
-                q_next_minus, qdot_next_minus = self._forward_dynamics(q_k, qdot_k, u_minus)
+                q_p, qd_p = self._forward_dynamics(q_demo[k], qdot_demo[k], u_plus)
+                q_m, qd_m = self._forward_dynamics(q_demo[k], qdot_demo[k], u_minus)
                 
-                # 수치 미분
-                dq_next_du = (q_next_plus - q_next_minus) / (2 * epsilon)
-                dqdot_next_du = (qdot_next_plus - qdot_next_minus) / (2 * epsilon)
-                
-                dynamics_grad[:, i] = dq_next_du
+                dynamics_grad_q[:, i] = (q_p - q_m) / (2 * epsilon)
+                dynamics_grad_qdot[:, i] = (qd_p - qd_m) / (2 * epsilon)
+
+            # 3. ∂J/∂u_k 계산 (Chain Rule)
+            # u_k는 k+1 번째의 상태 오차에 영향을 미칩니다.
             
-            # 다음 스텝의 비용에 대한 영향 (체인 룰)
-            # ∂l_{k+1}/∂q_{k+1} * ∂q_{k+1}/∂u_k
             if k < self.horizon - 1:
-                # 참조값 (여기서는 시연의 마지막 상태를 목표로 가정)
-                q_ref = q_demo[-1]
-                q_error_next = q_demo[k+1] - q_ref
+                # --- Running Cost 영역 ---
+                # q_error = q_{k+1} - q_ref
+                de_dq = 2 * q_pos_w * (q_demo[k+1] - q_ref)
+                # qdot_error = qdot_{k+1} - qdot_ref
+                de_dqdot = 2 * q_vel_ref_w * (qdot_demo[k+1] - qdot_ref)
+                # Damping (속도 절대값 페널티)
+                de_dqdot_damping = 2 * q_vel_w * qdot_demo[k+1]
                 
-                dldu_chain = dynamics_grad.T @ (2 * q_pos_weight * q_error_next)
-                dldu_chain += dynamics_grad.T @ (2 * q_vel_weight * qdot_demo[k+1])
-            else:
-                # 종단 비용
-                q_ref = q_demo[-1]
-                q_error_terminal = q_demo[-1] - q_ref
-                dldu_chain = dynamics_grad.T @ (2 * q_terminal_weight * q_error_terminal)
+                dldu_chain = dynamics_grad_q.T @ de_dq + dynamics_grad_qdot.T @ (de_dqdot + de_dqdot_damping)
             
-            # 전체 기울기
+            else:
+                # --- Terminal Cost 영역 (마지막 입력 u_{N-1}이 최종 상태에 미치는 영향) ---
+                de_dq_term = 2 * q_term_w * (q_demo[k+1] - q_ref)
+                de_dqdot_term = 2 * q_vel_term_w * (qdot_demo[k+1] - qdot_ref)
+                
+                dldu_chain = dynamics_grad_q.T @ de_dq_term + dynamics_grad_qdot.T @ de_dqdot_term
+            
             grad_L[k] = dldu_direct + dldu_chain
         
-        # ‖∇L‖² 계산
-        gradient_norm_squared = np.sum(grad_L ** 2)
-        
-        return gradient_norm_squared
+        return np.sum(grad_L ** 2)
+
+
     
     def _forward_dynamics(self, q, qdot, u):
         """
@@ -246,7 +228,9 @@ class InverseOptimalControl:
                 1000.0,  # q_pos_weight
                 50.0,    # q_vel_weight  
                 0.01,    # r_tau_weight
-                1500.0   # q_terminal_weight
+                1500.0,  # q_terminal_weight
+                50.0,    # q_vel_terminal_weight
+                10.0     # q_vel_ref_weight
             ])
         
         self.theta_init = theta_init.copy()
@@ -411,7 +395,10 @@ class InverseOptimalControl:
         axes[1, 1].grid(True, alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig('/mnt/user-data/outputs/ioc_results.png', dpi=150)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        save_path = os.path.join(base_dir, "ioc_results.png")
+        plt.savefig(save_path, dpi=150)
+        # plt.savefig('/mnt/user-data/outputs/ioc_results.png', dpi=150)
         print("\n✅ Visualization saved: ioc_results.png")
         plt.show()
 
@@ -430,12 +417,16 @@ def apply_learned_weights_to_mpc(mpc_controller, theta_learned):
     Q_vel = np.eye(nq) * theta_learned[1]
     R_tau = np.eye(nq) * theta_learned[2]
     Q_terminal = np.eye(nq) * theta_learned[3]
+    Q_vel_terminal = np.eye(nq) * theta_learned[4]
+    Q_vel_ref = np.eye(nq) * theta_learned[5]
     
     mpc_controller.update_cost_weights(
         Q_pos=Q_pos,
-        Q_vel_ref=Q_vel,
+        Q_vel=Q_vel,
         R_tau=R_tau,
-        Q_terminal=Q_terminal
+        Q_terminal=Q_terminal,
+        Q_vel_terminal=Q_vel_terminal,
+        Q_vel_ref=Q_vel_ref
     )
     
     print("\n✅ Learned weights applied to MPC controller!")
@@ -443,3 +434,5 @@ def apply_learned_weights_to_mpc(mpc_controller, theta_learned):
     print(f"   Q_vel: {theta_learned[1]:.2f}")
     print(f"   R_tau: {theta_learned[2]:.2f}")
     print(f"   Q_terminal: {theta_learned[3]:.2f}")
+    print(f"   Q_vel_terminal: {theta_learned[4]:.2f}")
+    print(f"   Q_vel_ref: {theta_learned[5]:.2f}")

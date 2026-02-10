@@ -268,7 +268,7 @@ class PathConfig:
     """파일 경로 설정"""
 
     # 절대 경로로 직접 지정 (사용자 환경에 맞게 수정 필요)
-    ROOT_DIR = "/home/seohy/colcon_ws/src/olaf/ffw"
+    ROOT_DIR = "/home/seohy/colcon_ws/src/ffw2"
     CODE_DIR = os.path.join(ROOT_DIR, "code")
     MODEL_DIR = os.path.join(ROOT_DIR, "model")
     XML_PATH = os.path.join(MODEL_DIR, "scene_ffw_sg2.xml")
@@ -284,7 +284,7 @@ class PathConfig:
         }
 
     # 데이터셋 저장 경로
-    DATASET_PATH = "/home/seohy/colcon_ws/src/olaf/ffw/code/dataGet/delta_tau_dataset.npz"
+    DATASET_PATH = "/home/seohy/colcon_ws/src/ffw2/code/dataGet/delta_tau_dataset.npz"
 
 
 class DatasetConfig:

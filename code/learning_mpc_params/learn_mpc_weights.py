@@ -17,15 +17,16 @@ import sys
 import os
 
 # 프로젝트 경로 추가
-sys.path.append('/home/seohy/colcon_ws/src/olaf/ffw/code')
+sys.path.append('/home/seohy/colcon_ws/src/ffw2/code')
 
 from dataGet.config import PathConfig, MPCConfig, SimulationConfig
 from dataGet.robot_setup import setup_robot
-from inverse_optimal_control import InverseOptimalControl
+from .inverse_optimal_control import InverseOptimalControl
 
 
 def main():
     print("\n" + "="*80)
+    print("🎓 Learning MPC Cost Weights from Expert Demonstrations")
     print("🎓 Learning MPC Cost Weights from Expert Demonstrations")
     print("   Method: Inverse Optimal Control with Relaxed KKT Conditions")
     print("="*80)
@@ -85,14 +86,29 @@ def main():
         CostWeights.Q_POS[0, 0],
         CostWeights.Q_VEL[0, 0],
         CostWeights.R_TAU[0, 0],
-        CostWeights.Q_TERMINAL[0, 0]
+        CostWeights.Q_TERMINAL[0, 0],
+        CostWeights.Q_VEL_TERMINAL[0, 0],
+        CostWeights.Q_VEL_REF[0, 0]
+        
     ])
-    
+
+    # theta_init = np.array([
+    #     1000.0,    # Q_pos
+    #     25.0,     # Q_vel    
+    #     0.001,  # R_tau
+    #     1000.0,    # Q_terminal
+    #     25.0,     # Q_vel_terminal
+    #     10.0      # Q_vel_ref
+    # ])
+
     print(f"\n📝 Initial weights from config:")
     print(f"   Q_pos: {theta_init[0]:.2f}")
     print(f"   Q_vel: {theta_init[1]:.2f}")
     print(f"   R_tau: {theta_init[2]:.6f}")
     print(f"   Q_terminal: {theta_init[3]:.2f}")
+    print(f"   Q_vel_terminal: {theta_init[4]:.2f}")
+    print(f"   Q_vel_ref: {theta_init[5]:.2f}")
+
     
     # 학습 실행
     theta_learned, result = ioc.learn_cost_weights(
@@ -114,7 +130,7 @@ def main():
     # ===============================
     # 8. Save Learned Weights
     # ===============================
-    output_path = '/home/seohy/colcon_ws/src/olaf/ffw/code/learning_mpc_params/learned_mpc_weights.npz'
+    output_path = '/home/seohy/colcon_ws/src/ffw2/code/learning_mpc_params/learned_mpc_weights.npz'
     
     np.savez(
         output_path,
@@ -150,17 +166,19 @@ def main():
     Q_VEL = np.eye(1) * {theta_learned[1]:.4f}
     R_TAU = np.eye(1) * {theta_learned[2]:.6f}
     Q_TERMINAL = np.eye(1) * {theta_learned[3]:.4f}
-    Q_VEL_TERMINAL = np.eye(1) * {theta_learned[1]:.4f}
-    Q_VEL_REF = np.eye(1) * {theta_learned[1]:.4f}
+    Q_VEL_TERMINAL = np.eye(1) * {theta_learned[4]:.4f}
+    Q_VEL_REF = np.eye(1) * {theta_learned[5]:.4f}
     
     # 원래 가중치 (비교용)
     Q_POS_ORIGINAL = np.eye(1) * {theta_init[0]:.4f}
     Q_VEL_ORIGINAL = np.eye(1) * {theta_init[1]:.4f}
     R_TAU_ORIGINAL = np.eye(1) * {theta_init[2]:.6f}
     Q_TERMINAL_ORIGINAL = np.eye(1) * {theta_init[3]:.4f}
+    Q_VEL_TERMINAL_ORIGINAL = np.eye(1) * {theta_init[4]:.4f}
+    Q_VEL_REF_ORIGINAL = np.eye(1) * {theta_init[5]:.4f}
 """
     
-    config_path = '/home/seohy/colcon_ws/src/olaf/ffw/code/learned_weights_config.py'
+    config_path = '/home/seohy/colcon_ws/src/ffw2/code/learning_mpc_params/learned_weights_config.py'
     with open(config_path, 'w') as f:
         f.write(config_code)
     
