@@ -122,10 +122,13 @@ class InverseOptimalControl:
             dynamics_grad_q = np.zeros((self.nq, self.nq))    # ∂q_{k+1}/∂u_k
             dynamics_grad_qdot = np.zeros((self.nq, self.nq)) # ∂qdot_{k+1}/∂u_k
             
-            epsilon = 1e-6
+            epsilon = 1e-4
             for i in range(self.nq):
                 u_plus = u_demo[k].copy();  u_plus[i] += epsilon
+                q_next_plus, qdot_next_plus = self._forward_dynamics(q_demo[k], qdot_demo[k], u_plus) # 내부에서 mj_forward 호출
+                
                 u_minus = u_demo[k].copy(); u_minus[i] -= epsilon
+                q_next_minus, qdot_next_minus = self._forward_dynamics(q_demo[k], qdot_demo[k], u_minus)
                 
                 q_p, qd_p = self._forward_dynamics(q_demo[k], qdot_demo[k], u_plus)
                 q_m, qd_m = self._forward_dynamics(q_demo[k], qdot_demo[k], u_minus)
@@ -234,6 +237,7 @@ class InverseOptimalControl:
             ])
         
         self.theta_init = theta_init.copy()
+        log_theta_init = np.log(theta_init)
         
         print("\n" + "="*60)
         print("🎯 Inverse Optimal Control: Learning MPC Cost Weights")
@@ -244,7 +248,10 @@ class InverseOptimalControl:
         print(f"Initial parameters: {theta_init}")
         
         # 목적함수: 모든 시연에 대한 평균 ‖∇L‖²
-        def objective(theta):
+        def objective(log_theta):
+            # 2. 수치적 발산 방지: 값이 너무 커지거나 작아지지 않게 클리핑
+            log_theta = np.clip(log_theta, -20, 20)
+            theta = np.exp(log_theta)
             total_grad_norm = 0.0
             for demo in demonstrations:
                 grad_norm_sq = self.compute_gradient_norm(theta, demo)
@@ -271,18 +278,19 @@ class InverseOptimalControl:
         # 최적화 실행
         result = minimize(
             objective,
-            theta_init,
-            method='SLSQP',
-            bounds=bounds,
-            constraints=constraints,
+            log_theta_init,
+            method='L-BFGS-B',
+            # bounds=bounds,
+            # constraints=constraints,
             options={
                 'maxiter': 100,
-                'ftol': 1e-6,
+                'ftol': 1e-7,
                 'disp': True
             }
         )
         
-        theta_opt = result.x
+        # theta_opt = result.x
+        theta_opt = np.exp(np.clip(result.x, -20, 20))
         
         print("\n✅ Optimization completed!")
         print(f"   Success: {result.success}")
