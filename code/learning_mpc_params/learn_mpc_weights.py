@@ -82,24 +82,24 @@ def main():
     # 현재 config의 가중치를 초기값으로 사용
     from dataGet.config import CostWeights
     
-    theta_init = np.array([
-        CostWeights.Q_POS[0, 0],
-        CostWeights.Q_VEL[0, 0],
-        CostWeights.R_TAU[0, 0],
-        CostWeights.Q_TERMINAL[0, 0],
-        CostWeights.Q_VEL_TERMINAL[0, 0],
-        CostWeights.Q_VEL_REF[0, 0]
-        
-    ])
-
     # theta_init = np.array([
-    #     1000.0,    # Q_pos
-    #     25.0,     # Q_vel    
-    #     0.001,  # R_tau
-    #     1000.0,    # Q_terminal
-    #     25.0,     # Q_vel_terminal
-    #     10.0      # Q_vel_ref
+    #     CostWeights.Q_POS[0, 0],
+    #     CostWeights.Q_VEL[0, 0],
+    #     CostWeights.R_TAU[0, 0],
+    #     CostWeights.Q_TERMINAL[0, 0],
+    #     CostWeights.Q_VEL_TERMINAL[0, 0],
+    #     CostWeights.Q_VEL_REF[0, 0]
+        
     # ])
+
+    theta_init = np.array([
+        1000.0,    # Q_pos
+        25.0,     # Q_vel    
+        0.001,  # R_tau
+        1000.0,    # Q_terminal
+        25.0,     # Q_vel_terminal
+        10.0      # Q_vel_ref
+    ])
 
     print(f"\n📝 Initial weights from config:")
     print(f"   Q_pos: {theta_init[0]:.2f}")

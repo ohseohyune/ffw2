@@ -17,6 +17,7 @@ import mujoco
 from scipy.optimize import minimize, LinearConstraint
 import matplotlib.pyplot as plt
 from typing import Dict, Tuple, List
+from tqdm import tqdm
 
 
 class InverseOptimalControl:
@@ -212,7 +213,7 @@ class InverseOptimalControl:
         
         return q_next, qdot_next
     
-    def learn_cost_weights(self, demonstrations, theta_init=None):
+    def learn_cost_weights(self, demonstrations, theta_init):
         """
         시연 데이터로부터 비용함수 가중치 학습
         
@@ -253,7 +254,10 @@ class InverseOptimalControl:
             log_theta = np.clip(log_theta, -20, 20)
             theta = np.exp(log_theta)
             total_grad_norm = 0.0
-            for demo in demonstrations:
+
+            # 진행바 출력 (desc를 통해 현재 Loss 상태 표시)
+            pbar = tqdm(demonstrations, desc="Computing IOC Gradient", leave=False)
+            for demo in pbar: 
                 grad_norm_sq = self.compute_gradient_norm(theta, demo)
                 total_grad_norm += grad_norm_sq
             
@@ -284,8 +288,9 @@ class InverseOptimalControl:
             # constraints=constraints,
             options={
                 'maxiter': 100,
-                'ftol': 1e-7,
-                'disp': True
+                'ftol': 1e-4,
+                'disp': True,
+                'eps' : 1e-3
             }
         )
         

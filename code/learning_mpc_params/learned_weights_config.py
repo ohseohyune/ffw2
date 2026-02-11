@@ -8,17 +8,17 @@
     '''MPC 비용함수 가중치 (역최적제어로 학습됨)'''
     
     # 학습된 가중치
-    Q_POS = np.eye(1) * 2000.0000
-    Q_VEL = np.eye(1) * 50.0000
-    R_TAU = np.eye(1) * 0.001000
-    Q_TERMINAL = np.eye(1) * 2500.0000
-    Q_VEL_TERMINAL = np.eye(1) * 50.0000
-    Q_VEL_REF = np.eye(1) * 10.0000
+    Q_POS = np.eye(1) * 1108.3689
+    Q_VEL = np.eye(1) * 24.8711
+    R_TAU = np.eye(1) * 0.000019
+    Q_TERMINAL = np.eye(1) * 1000.0000
+    Q_VEL_TERMINAL = np.eye(1) * 25.0000
+    Q_VEL_REF = np.eye(1) * 9.9686
     
     # 원래 가중치 (비교용)
-    Q_POS_ORIGINAL = np.eye(1) * 2000.0000
-    Q_VEL_ORIGINAL = np.eye(1) * 50.0000
+    Q_POS_ORIGINAL = np.eye(1) * 1000.0000
+    Q_VEL_ORIGINAL = np.eye(1) * 25.0000
     R_TAU_ORIGINAL = np.eye(1) * 0.001000
-    Q_TERMINAL_ORIGINAL = np.eye(1) * 2500.0000
-    Q_VEL_TERMINAL_ORIGINAL = np.eye(1) * 50.0000
+    Q_TERMINAL_ORIGINAL = np.eye(1) * 1000.0000
+    Q_VEL_TERMINAL_ORIGINAL = np.eye(1) * 25.0000
     Q_VEL_REF_ORIGINAL = np.eye(1) * 10.0000

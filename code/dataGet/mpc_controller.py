@@ -263,7 +263,7 @@ class TorqueMPC:
         # Return as-is for MuJoCo (no double bias compensation)
         return tau_opt.copy(), tau_opt.copy()
 
-    def update_cost_weights(self, Q_pos=None, Q_vel_ref=None, R_tau=None, Q_terminal=None):
+    def update_cost_weights(self, Q_pos=None, Q_vel=None, Q_vel_ref=None, R_tau=None, Q_terminal=None, Q_vel_terminal=None):
         """
         Update cost function weights
         
@@ -275,12 +275,17 @@ class TorqueMPC:
         """
         if Q_pos is not None:
             self.Q_pos = Q_pos.copy()
+        if Q_vel is not None:
+            self.Q_vel = Q_vel.copy()
         if Q_vel_ref is not None:
             self.Q_vel_ref = Q_vel_ref.copy()
         if R_tau is not None:
             self.R_tau = R_tau.copy()
         if Q_terminal is not None:
             self.Q_terminal = Q_terminal.copy()
+        if self.Q_vel_terminal is not None:
+            self.Q_vel_terminal = self.Q_vel_terminal.copy()
+        
 
     def get_config(self):
         """Return controller configuration"""
