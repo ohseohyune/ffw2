@@ -314,8 +314,9 @@ class DatasetCollector:
         self.dataset_qdot = []
         self.dataset_tau = []
         self.dataset_delta_tau = []
+        self.dataset_q_ref = []  # 추가: 참조 각도 저장
 
-    def add_sample(self, q, qdot, tau_mpc, delta_tau):
+    def add_sample(self, q, qdot, tau_mpc, delta_tau, q_ref):
         """
         Add one sample to dataset
 
@@ -329,6 +330,8 @@ class DatasetCollector:
         self.dataset_qdot.append(qdot.copy())
         self.dataset_tau.append(tau_mpc.copy())
         self.dataset_delta_tau.append(delta_tau.copy())
+        self.dataset_q_ref.append(q_ref.copy())  # 추가: 참조 각도 저장
+
 
     def save_dataset(self, filepath=None):
         """
@@ -349,6 +352,7 @@ class DatasetCollector:
             qdot=np.array(self.dataset_qdot),
             tau_mpc=np.array(self.dataset_tau),
             delta_tau=np.array(self.dataset_delta_tau)
+            , q_ref=np.array(self.dataset_q_ref)  # 추가: 참조 각도 저장
         )
 
         print(f"\n✅ Dataset saved to {filepath}")

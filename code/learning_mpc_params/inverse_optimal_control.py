@@ -40,11 +40,7 @@ class InverseOptimalControl:
         self.nq = len(joint_ids)
         self.horizon = horizon
         self.dt = dt
-        
-        # MPC 동역학 계산용 데이터
-        self.data_temp = mujoco.MjData(model)
-        
-        # 파라미터 초기값 저장
+        self.data_temp = mujoco.MjData(model)        
         self.theta_init = None
         
     def load_demonstration_data(self, data_path):
@@ -70,6 +66,9 @@ class InverseOptimalControl:
         # 전체 데이터를 horizon 길이의 세그먼트로 나눔
         n_samples = len(data['q'])
         segment_length = self.horizon + 1
+
+        # 데이터셋에 q_ref가 없을 경우를 대비해 예외 처리
+        has_ref = 'q_ref' in data.files
         
         for start_idx in range(0, n_samples - segment_length, segment_length // 2):
             end_idx = start_idx + segment_length
@@ -81,6 +80,11 @@ class InverseOptimalControl:
                 't': np.arange(segment_length) * self.dt
             }
             
+            if has_ref:
+                demo['q_ref'] = data['q_ref'][start_idx:end_idx]
+            else:   
+                demo['q_ref'] = np.tile(data['q'][-1], (segment_length, 1))
+
             demonstrations.append(demo)
         
         print(f"✅ Loaded {len(demonstrations)} demonstration segments")
@@ -108,15 +112,17 @@ class InverseOptimalControl:
         q_demo = demonstration['q']       # (horizon+1, nq)
         qdot_demo = demonstration['qdot'] # (horizon+1, nq)
         u_demo = demonstration['u']       # (horizon, nq)
+        q_ref_seq = demonstration['q_ref']    # (horizon+1, nq)
         
         # 전문가의 목표 상태 (시연의 마지막을 목표로 가정하거나 별도의 ref 사용)
-        q_ref = q_demo[-1]
-        qdot_ref = qdot_demo[-1] 
+        # q_ref = q_demo[-1]
+        # qdot_ref = qdot_demo[-1] 
         
         grad_L = np.zeros((self.horizon, self.nq))
         
         for k in range(self.horizon):
             # 1. ∂l_k/∂u_k (현재 스텝의 Control Effort 미분)
+            q_ref_k = q_ref_seq[k+1]
             dldu_direct = 2 * r_tau_w * u_demo[k]
             
             # 2. ∂x_{k+1}/∂u_k (System Dynamics 미분 - 수치 미분)
@@ -140,24 +146,17 @@ class InverseOptimalControl:
             # 3. ∂J/∂u_k 계산 (Chain Rule)
             # u_k는 k+1 번째의 상태 오차에 영향을 미칩니다.
             
+           # Chain Rule: q_ref_k를 사용하여 오차 계산
             if k < self.horizon - 1:
-                # --- Running Cost 영역 ---
-                # q_error = q_{k+1} - q_ref
-                de_dq = 2 * q_pos_w * (q_demo[k+1] - q_ref)
-                # qdot_error = qdot_{k+1} - qdot_ref
-                de_dqdot = 2 * q_vel_ref_w * (qdot_demo[k+1] - qdot_ref)
-                # Damping (속도 절대값 페널티)
-                de_dqdot_damping = 2 * q_vel_w * qdot_demo[k+1]
-                
-                dldu_chain = dynamics_grad_q.T @ de_dq + dynamics_grad_qdot.T @ (de_dqdot + de_dqdot_damping)
-            
+                # Running Cost (궤적 오차 반영)
+                de_dq = 2 * q_pos_w * (q_demo[k+1] - q_ref_k)
+                de_dqdot = 2 * q_vel_ref_w * qdot_demo[k+1] + 2 * q_vel_w * qdot_demo[k+1]
+                dldu_chain = dynamics_grad_q.T @ de_dq + dynamics_grad_qdot.T @ de_dqdot
             else:
-                # --- Terminal Cost 영역 (마지막 입력 u_{N-1}이 최종 상태에 미치는 영향) ---
-                de_dq_term = 2 * q_term_w * (q_demo[k+1] - q_ref)
-                de_dqdot_term = 2 * q_vel_term_w * (qdot_demo[k+1] - qdot_ref)
-                
-                dldu_chain = dynamics_grad_q.T @ de_dq_term + dynamics_grad_qdot.T @ de_dqdot_term
-            
+                # Terminal Cost
+                de_dq_term = 2 * q_term_w * (q_demo[k+1] - q_ref_k)
+                de_dqdot_term = 2 * q_vel_term_w * qdot_demo[k+1]
+                dldu_chain = dynamics_grad_q.T @ de_dq_term + dynamics_grad_qdot.T @ de_dqdot_term 
             grad_L[k] = dldu_direct + dldu_chain
         
         return np.sum(grad_L ** 2)

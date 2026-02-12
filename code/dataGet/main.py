@@ -222,7 +222,8 @@ def main():
                 q=q_k[controlled_joint_ids],
                 qdot=qdot_k[controlled_joint_ids],
                 tau_mpc=tau_mpc_hold,
-                delta_tau=tau_residual
+                delta_tau=tau_residual,
+                q_ref=q_ref_array  # 추가: 참조 각도 저장
             )
             
             # Store 6-torque comparison (for dataGet phase, delta_trained = 0)

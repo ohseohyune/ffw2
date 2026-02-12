@@ -16,6 +16,7 @@ import mujoco.viewer
 import time
 import sys
 import os
+import matplotlib.pyplot as plt  # 추가: plot을 위한 import
 
 sys.path.append('/home/seohy/colcon_ws/src/ffw2/code')
 
@@ -29,7 +30,7 @@ from dataGet.data_logger import TrackingLogger
 from dataGet.robot_setup import setup_robot
 from eval.evaluation import PerformanceEvaluator
 from .inverse_optimal_control import apply_learned_weights_to_mpc
-
+from dataGet.trajectory import generate_reference_trajectory, get_trajectory_phases  # 추가: get_trajectory_phases
 
 def main():
     print("\n" + "="*80)
@@ -57,6 +58,8 @@ def main():
     print(f"   Q_vel: {theta_learned[1]:.2f}  (original: {theta_init[1]:.2f})")
     print(f"   R_tau: {theta_learned[2]:.6f}  (original: {theta_init[2]:.6f})")
     print(f"   Q_terminal: {theta_learned[3]:.2f}  (original: {theta_init[3]:.2f})")
+    print(f"   Q_vel_terminal: {theta_learned[4]:.2f}  (original: {theta_init[4]:.2f})")
+    print(f"   Q_vel_ref: {theta_learned[5]:.2f}  (original: {theta_init[5]:.2f})")
     
     # ===============================
     # 2. Setup MuJoCo
@@ -226,6 +229,14 @@ def main():
         for key, value in result_learned.items():
             if key != 'label':
                 print(f"   {key:25s}: {value:.6f}")
+
+        
+    # ===============================
+    # 9. Plot Trajectories (추가된 섹션)
+    # ===============================
+    # print("\n📊 Generating trajectory plots...")
+    # plot_learned_trajectory(tracking_logger, joint_names)
+    # plot_tracking_error(tracking_logger)
     
     # ===============================
     # 10. Save Results
@@ -241,7 +252,7 @@ def main():
     print("✅ Evaluation Completed!")
     print("="*80)
     
-    print(f"\n📋 Key Metrics (Learned Weights):")
+    print(f"\n📋 Key Metrics (Learned Weights):")   
     print(f"   RMSE (all):        {result_learned['rmse_all']:.6f} rad")
     print(f"   RMSE (transition): {result_learned['rmse_transition']:.6f} rad")
     print(f"   RMSE (steady):     {result_learned['rmse_steady']:.6f} rad")
