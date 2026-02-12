@@ -160,7 +160,7 @@ def mpc_worker(model, controller,
         # Run MPC optimization
         t0 = time.time()
         try:
-            tau_total, tau_mpc = controller.compute_control_from_state(
+            tau_total, tau_mpc, nit  = controller.compute_control_from_state(
                 inp.q, inp.qdot, inp.q_ref, inp.q_ref_prev
             )
             
@@ -168,7 +168,7 @@ def mpc_worker(model, controller,
             shared_tau.write(tau_total, tau_mpc, stamp=time.time())
             
             solve_time = (time.time() - t0) * 1000
-            print(f"[MPC] solve: {solve_time:.1f}ms")
+            print(f"[MPC] solve: {solve_time:.1f}ms, nit: {nit}")
             
         except Exception as e:
             print(f"[MPC] solve failed: {e}")

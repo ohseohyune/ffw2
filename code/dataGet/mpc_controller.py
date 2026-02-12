@@ -258,10 +258,11 @@ class TorqueMPC:
 
         # Extract first control input and clip
         tau_opt = np.clip(result.x[:self.nq], self.tau_min, self.tau_max)
-        
+        nit = result.nit
+
         # tau_opt already accounts for system dynamics in the optimization
         # Return as-is for MuJoCo (no double bias compensation)
-        return tau_opt.copy(), tau_opt.copy()
+        return tau_opt.copy(), tau_opt.copy(), nit
 
     def update_cost_weights(self, Q_pos=None, Q_vel=None, Q_vel_ref=None, R_tau=None, Q_terminal=None, Q_vel_terminal=None):
         """

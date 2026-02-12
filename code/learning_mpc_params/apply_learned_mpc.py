@@ -32,6 +32,99 @@ from eval.evaluation import PerformanceEvaluator
 from .inverse_optimal_control import apply_learned_weights_to_mpc
 from dataGet.trajectory import generate_reference_trajectory, get_trajectory_phases  # 추가: get_trajectory_phases
 
+def visualize_cost_landscape(controller, q_full, qdot_full, q_ref):
+    """
+    최적해 주변의 목적함수 지형을 3D로 시각화합니다.
+    (첫 번째와 두 번째 제어 입력의 변화에 따른 비용 변화)
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
+
+    # 1. 기준 상태 설정 및 최적해 계산
+    q0 = q_full[controller.joint_ids]
+    qdot0 = qdot_full[controller.joint_ids]
+    controller._cache_dynamics_from_state(q_full, qdot_full)
+    
+    # 임의의 기준 속도 0 설정
+    qdot_ref = np.zeros_like(q0)
+    
+    # 2. 격자 생성 (첫 번째 토크 tau_0와 두 번째 토크 tau_1)
+    # 현재 1자유도(Shoulder) 기준
+    n_points = 30
+    tau_range = np.linspace(-15, 15, n_points)
+    T0, T1 = np.meshgrid(tau_range, tau_range)
+    Z = np.zeros_like(T0)
+
+    # 고정된 나머지 토크들 (모두 0으로 가정하거나 최적해 사용)
+    tau_seq = np.zeros(controller.horizon * controller.nq)
+
+    print("📊 Computing cost landscape...")
+    for i in range(n_points):
+        for j in range(n_points):
+            tau_seq[0] = T0[i, j] # 첫 번째 시점 토크
+            tau_seq[1] = T1[i, j] # 두 번째 시점 토크
+            Z[i, j] = controller._compute_cost(tau_seq, q0, qdot0, q_ref, qdot_ref)
+
+    # 3. 시각화
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    surf = ax.plot_surface(T0, T1, Z, cmap=cm.viridis, antialiased=True, alpha=0.8)
+    
+    ax.set_title(f'MPC Cost Landscape (Q_pos={controller.Q_pos[0,0]})')
+    ax.set_xlabel('Torque step 0 [Nm]')
+    ax.set_ylabel('Torque step 1 [Nm]')
+    ax.set_zlabel('Total Cost')
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    
+    plt.savefig("mpc_cost_landscape.png")
+    print("📈 Cost landscape saved as 'mpc_cost_landscape.png'")
+    plt.show()
+
+def plot_tracking_performance(tracking_logger, shoulder_id):
+    """
+    Reference trajectory와 Actual trajectory를 비교하고 
+    추종 오차(Tracking Error)를 시각화합니다.
+    """
+    # 에러 수정: get_data() 대신 get_arrays() 호출
+    data = tracking_logger.get_arrays()
+    
+    t = data['time']
+    # TrackingLogger.get_arrays()는 'shoulder_ref', 'shoulder_act' 키를 사용함
+    ref_pos = data['shoulder_ref']
+    act_pos = data['shoulder_act']
+    
+    error = ref_pos - act_pos
+
+    plt.figure(figsize=(10, 8))
+
+    # 1. Trajectory Plot
+    plt.subplot(2, 1, 1)
+    plt.plot(t, ref_pos, 'r--', linewidth=2, label='Reference')
+    plt.plot(t, act_pos, 'b-', linewidth=1.5, label='Actual (Learned MPC)')
+    plt.title('Shoulder Joint Trajectory Tracking')
+    plt.xlabel('Time [s]')
+    plt.ylabel('Position [rad]')
+    plt.legend()
+    plt.grid(True)
+
+    # 2. Tracking Error Plot
+    plt.subplot(2, 1, 2)
+    plt.plot(t, error, 'g-', label='Tracking Error')
+    plt.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+    plt.title('Shoulder Tracking Error Over Time')
+    plt.xlabel('Time [s]')
+    plt.ylabel('Error [rad]')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    
+    # 결과 저장
+    plot_path = "learned_mpc_tracking_plot.png"
+    plt.savefig(plot_path)
+    print(f"\n📈 Trajectory plot saved to: {plot_path}")
+    plt.show()
+    
 def main():
     print("\n" + "="*80)
     print("🚀 Testing MPC with Learned Cost Weights")
@@ -232,21 +325,24 @@ def main():
 
         
     # ===============================
-    # 9. Plot Trajectories (추가된 섹션)
+    # 10. Plot Trajectories (추가된 섹션)
     # ===============================
-    # print("\n📊 Generating trajectory plots...")
-    # plot_learned_trajectory(tracking_logger, joint_names)
-    # plot_tracking_error(tracking_logger)
+    print("\n📈 Plotting tracking performance...")
+    plot_tracking_performance(tracking_logger, shoulder_id)
+
+    # Visualize cost landscape around a sample state
+    print("\n📈 Visualizing MPC cost landscape...")
+    visualize_cost_landscape(controller, data.qpos, data.qvel, q_ref_array)
     
     # ===============================
-    # 10. Save Results
+    # 11. Save Results
     # ===============================
     save_path = "result_mpc_learned.npz"
     np.savez(save_path, **result_learned)
     print(f"\n💾 Saved results: {save_path}")
     
     # ===============================
-    # 11. Summary
+    # 12. Summary
     # ===============================
     print("\n" + "="*80)
     print("✅ Evaluation Completed!")

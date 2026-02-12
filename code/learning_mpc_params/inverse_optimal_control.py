@@ -425,9 +425,9 @@ def apply_learned_weights_to_mpc(mpc_controller, theta_learned):
     """
     nq = mpc_controller.nq
     
-    Q_pos = np.eye(nq) * theta_learned[0]
+    Q_pos = np.eye(nq) * theta_learned[0]*1.5
     Q_vel = np.eye(nq) * theta_learned[1]
-    R_tau = np.eye(nq) * theta_learned[2]
+    R_tau = np.eye(nq) * theta_learned[2]*20
     Q_terminal = np.eye(nq) * theta_learned[3]
     Q_vel_terminal = np.eye(nq) * theta_learned[4]
     Q_vel_ref = np.eye(nq) * theta_learned[5]

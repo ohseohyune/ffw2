@@ -170,7 +170,7 @@ class SimulationConfig:
     SIM_DT = 0.005
 
     # MPC 실행 주파수 (100 Hz)
-    MPC_RATE_HZ = 80.0
+    MPC_RATE_HZ = 200.0
 
     # 전체 시뮬레이션 시간
     SIM_DURATION = 10  # T_raise + T_wait + T_wave + 1.0
